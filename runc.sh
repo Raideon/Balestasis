@@ -23,7 +23,7 @@ fi
 #	then instances line by line.
 
 #set the name of the data file without the extension, for example, data from data.dat
-datafile=alarm_10000
+datafile=alarmCache
 
 #set the time (per node) for cache construction (searching local strutures). 
 #This time limit isn't strict. For ordinarily complex networks with less than 1000 nodes, 5-10 seconds is usually enough. 
@@ -37,7 +37,7 @@ soTime=2
 restart=1
 
 #if you want to save the learnt network to a file, set it as 1, otherwise 0. (The log will always say the network has been saved.)
-#Saved network will be placed in the network folder.
+#Saved network will be placed in the network folder. This won't work with preloaed cache.
 saveNet=0
 
 
@@ -46,7 +46,7 @@ printf "Data: $datafile\n\n"
 echo "started at $(date)" >> ./log/time.txt
 
 #			  1	   2	   3			4					  5			    6	 7	     8	   9----------------10------------11
-./balestasis 'd' $psiTime $soTime ./log/$datafile.txt ./data/$datafile.dat 'l' $restart None $saveNet ./network/$datafile.dsc None
+./balestasis 'c' $psiTime $soTime ./log/$datafile.txt ./data/$datafile.dat 'l' $restart None $saveNet ./network/$datafile.dsc None
 
 echo "completed at $(date)" >> ./log/time.txt
 

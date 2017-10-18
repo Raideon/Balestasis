@@ -30,6 +30,13 @@ void anceTracer(parentSet **net, unsigned int *list, unsigned int *c, unsigned i
 void shuffler(unsigned int *ordering);
 
 
+void structureToFile(){
+	
+	FILE *fp;
+	fp = fopen(outputPath, "a+");
+	
+}
+
 void netToDSCFile(){
 	
 	FILE *fp;

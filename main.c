@@ -3,7 +3,7 @@
  
 	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
  
-	This file is the main part of Balestasis
+	This file is the main part of Balestasis.
 
     Balestasis is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,25 +45,25 @@ double lnN;
 /* the size of ordering (chunk), extern class.*/
 unsigned int On;
 
-/* limits for running time (not strict), extern class*/
+/* the limits for running time (not strict), extern class*/
 unsigned int timeA, timeB; 
 
 /* the pointer to data, extern class */
 unsigned char *data; 
 
-/* pointer to testing orderings, extern class */
+/* the pointer to orderings, extern class */
 unsigned int *orderings;
 
 /* the pointer to the Nodes (struct), extern class */
 node *Nodes;
 
-/* the Bayesian network structure for output, extern class */
+/* the Bayesian network structure for the output, extern class */
 parentSet **finalNet;
 
 /* the score of the above, extern class*/
 double finalScore;
 
-/* pointer to the result ordering, which is needed to recover the network, extern class */
+/* the pointer to the result ordering, which is needed to recover the network, extern class */
 unsigned int *resultorder;
 
 /* for switching the scoring metric, extern class */
@@ -72,22 +72,27 @@ char metric;
 /* for switching the source and mode of ordering, extern class */
 char orderMode; 
 
+/* for switching the source of caches or deciding whether to save the caches, extern class */
+char cacheMode;
+
 /* turns pruned search on, no point turning it off, extern class*/
 char pruneMode;
 
-/* determines whether save the network to file, extern class*/
+/* determines whether to save the network to files, extern class*/
 int netToFile;
 
 /* output path and filename, extern class*/
 char *outputPath;
 
-/* keep a log of running info, extern class*/
+/* keep a log of the running info, extern class*/
 struct RuningLog zlog; 
 
 /* auxiliary extern pointers, extern class */
 double *aux0 = NULL, *aux1 = NULL, *aux2 = NULL;
 
 int main(int argc, char *argv[]){
+	
+	printf("Started. ");
 
 	time_t totalstart, totalfinish, checkpoint0, checkpointA0, checkpointA1, checkpointB0, checkpointB1, checkpointB2; //cpA for IS's actual completion, B for ASOBS's actually completion
 	
@@ -95,7 +100,7 @@ int main(int argc, char *argv[]){
 	
 	unsigned int soRestart = 1;
 	
-	unsigned char testingDifferentOrderingStrategyMode = 0; //This (experiment mode switch) decides whether orderMode will change in the middle of multiple runs. 
+	unsigned char testingDifferentOrderingStrategyMode = 0; //This (experiment mode switch) decides whether orderMode will change during multiple runs. 
 	
 	srand(time(NULL));
 	
@@ -105,50 +110,46 @@ int main(int argc, char *argv[]){
 	
 	unsigned int argTimeA, argTimeB;
 
-	//argv[1] reserved for metric switching, currently only BIC/MDL score is supported
+	cacheMode = argv[1][0]; //'d' raw data in, net out; 'h' raw data in, cache out; 'c' cache in, net out; 
 	sscanf(argv[2], "%u", &argTimeA); // IS per-node time limit
 	sscanf(argv[3], "%u", &argTimeB); // ASOBS time limit
 	sscanf(argv[4], "%s", zlog.logFile); //64-char-limit
 	sscanf(argv[5], "%s", zlog.inputFile); //same
+	sscanf(argv[11], "%s", zlog.orderFile); //same
+	sscanf(argv[10], "%s", zlog.outputFile); //same
 	orderMode = argv[6][0]; //'u' for random uniform, 'l' for sample learning, 'p' for preloaded orders from file
 	sscanf(argv[7], "%u", &soRestart); //if 'u' or 'l', then this can be set
-	sscanf(argv[8], "%s", zlog.orderFile); //same
-	sscanf(argv[9], "%d", &netToFile); // 0 or 1
-	sscanf(argv[10], "%s", zlog.outputFile); //same
+	//argv[8] reserved
+	sscanf(argv[9], "%d", &netToFile); // 0 not saved or 1 saved
 
 	if(netToFile == 1) {outputPath = zlog.outputFile;}
 	
 	
 	timeA = argTimeA; //This will be the ESTIMATED time limit of parent set searching for A node.
 
-	timeB = argTimeB; //This will be the ESTIMATED time limit of structure optimisation ALL nodes.
+	timeB = argTimeB; //This will be the ESTIMATED time limit of structure optimisation using ALL nodes.
 
 
-	metric = 'B'; //'B' for BIC. Currently, only using BIC makes sense.
+	metric = 'B'; //'B' for BIC. Currently, only BIC makes sense.
 	zlog.metricUsed[0] = metric;
  
-	pruneMode = 1; //I put a switch here in the early stage. But it turns out it is always better to set it as ON(1).
+	pruneMode = 1; //It seems that ON(1) is always better.
 
 	/* loading data below */
  	FILE *fp;
 	fp = fopen(zlog.inputFile, "r");
 
 	fscanf(fp, "%u", &Xn);
-
-	fscanf(fp, "%lu", &N);
-	
-	lnN = log(N);
-
-	printf("There are %u variables/nodes and %lu instances/data points.\n", Xn, N);
 	zlog.nodesNum = Xn;
-	zlog.dataNum = N;
 
 /*!!!*/node Variables[Xn];
+	
+	if(cacheMode != 'c') fscanf(fp, "%lu", &N);
 
 	unsigned int i;
 	for(i=0; i<Xn; i++){
 
-		fscanf(fp, "%s", Variables[i].name); //Be cautious of overflow! Less than 20 chars allowed.
+		fscanf(fp, "%s", Variables[i].name); //Be cautious of overflow! Use names with less than 20 chars!!!
 
 	}
 
@@ -158,22 +159,63 @@ int main(int argc, char *argv[]){
 		Variables[i].datumAC = i;
 
 	}
-
+	
 /*!!!*/Nodes = Variables;
+	
+	parentSet **cacheofscores[Xn]; //caches declared here
 
-	data = malloc(Xn*N); //unsigned char: assuming no variable has more than 256 states.
+	unsigned long cachesizes[Xn]; //the sizes of the caches
+	
+	printf("The cache mode is %c.\n", cacheMode);
+	
+	//If parent sets and their scores have already been computed, 
+	if(cacheMode == 'c'){
+		
+		unsigned int z;
+		for(z=0; z<Xn; z++){
+			
+			unsigned int thatNode;
+			
+			fscanf(fp, "%u %lu", &thatNode, &cachesizes[z]);
+			
+			parentSet **closedlist;
 
-	for(i=0; i<Xn*N; i++){
+			closedlist = malloc( cachesizes[z] * sizeof(parentSet *)); 
+			
+			unsigned int i;
+			for(i=0; i<cachesizes[z]; i++){
+				
+				double score;
+				
+				fscanf(fp, "%lf", &score);
+				
+				unsigned int parSize = 0;
+				
+				fscanf(fp, "%u", &parSize);
+				
+				unsigned int temp[parSize];
+				
+				unsigned int a;
+				for(a=0; a<parSize; a++) fscanf(fp, "%u", &temp[a]);
 
-		fscanf(fp, "%hhu", &data[i]);
+				closedlist[i] = createParentSet(parSize*sizeof(unsigned int), temp);
+				closedlist[i]->score = score;
+				
+			}
+			
+			cacheofscores[z] = closedlist;
 
+		}
+		fclose(fp);
+		
 	}
-	fclose(fp);
-	printf("Loading of the data set accomplished.\n");
-
+	
+	printf("System initialisation.\n");
 	if(orderMode == 'p'){
 		
-		soRestart = 1; //make sure that ASOBS only run once when orderings are preloaded
+		printf("Using preloaded orderings.\n");
+		
+		soRestart = 1; //ASOBS should run only once when orderings are preloaded
 	
 		fp = fopen(zlog.orderFile, "r");
 
@@ -194,10 +236,11 @@ int main(int argc, char *argv[]){
 		printf("There are %u preloaded orderings.\n", On);
 
 		orderings = malloc(Xn*On*sizeof(unsigned int));
+		
+		unsigned int iv;
+		for(iv=0; iv<Xn*On; iv++){
 
-		for(i=0; i<Xn*On; i++){
-
-			fscanf(fp, "%u", &orderings[i]);
+			fscanf(fp, "%u", &orderings[iv]);
 
 		}
 		fclose(fp);
@@ -207,7 +250,7 @@ int main(int argc, char *argv[]){
 	}
 	else if(orderMode == 'u' || orderMode == 'l' ){
 		
-		On = omp_get_max_threads();
+		On = omp_get_max_threads(); // One ordering per thread at a time.
 		orderings = malloc(Xn*On*sizeof(unsigned int));
 		
 	}
@@ -217,6 +260,26 @@ int main(int argc, char *argv[]){
 		orderings = malloc(Xn*sizeof(unsigned int));
 		
 	}
+	
+/*Portal Blue*/ if(cacheMode == 'c') goto Portal;	
+	
+	printf("Loading raw data.\n");
+		
+	lnN = log(N);
+	zlog.dataNum = N;
+	
+	printf("There are %u variables/nodes and %lu instances/data points.\n", Xn, N);
+
+	data = malloc(Xn*N); //unsigned char: assuming no variable has more than 256 states.
+
+	for(i=0; i<Xn*N; i++){
+
+		fscanf(fp, "%hhu", &data[i]);
+
+	}
+
+	fclose(fp);
+	printf("Loading of the data set accomplished.\n");
 	
 	printf("Loading accomplished.\n");
 	
@@ -233,16 +296,12 @@ int main(int argc, char *argv[]){
 	printf("\nCommencing cache construction.\n");
 	checkpointA0 = time(NULL);
 
-	parentSet **cacheofscores[Xn];
-
-	unsigned long cachesizes[Xn];
-
 	unsigned int z, completed = 0;
 	#pragma omp parallel for
 	for(z=0; z<Xn; z++){
 
 		cacheofscores[z] = indieSelection(z, &cachesizes[z]);
-		completed += 1; //no reduction because it's non-critical info for calculating progress
+		completed += 1; //no reduction because it's non-critical info for calculating/displaying progress
 		printf("\r  Cache construction for %u out of %u nodes complete (Progress: %u%%).", completed, Xn, (unsigned int) ((float) completed/(float) Xn*100));
 		fflush(stdout);
 
@@ -258,11 +317,15 @@ int main(int argc, char *argv[]){
 	printf("Time passed = %lds\n", totalfinish - totalstart);
 
 	if(netToFile == 0) { free(data); data = NULL; }
+	
+/* check against anomalies */
+	unsigned int r;
+	for(r=0; r<Xn; r++){for(z=0; z<cachesizes[r]; z++) parentSetDisplay(cacheofscores[r][z], 0, r, z);}
+	
+/* Portal Orange */Portal: printf("Caches are ready.\n"); 
 
-/*Check against anomaly*/
-	unsigned int r; for(r=0; r<Xn; r++){for(z=0; z<cachesizes[r]; z++) parentSetDisplay(cacheofscores[r][z], 0, r, z);}
 
-
+	
 /* Next: structure optimisation */
 
 	unsigned int exprun = 0;
@@ -271,7 +334,7 @@ int main(int argc, char *argv[]){
 	
 	resultorder = malloc(Xn*sizeof(unsigned int));
 
-/*Yellow*/Portal: 
+/*Portal Red*/Portal2: 
 
 	zlog.iCter = 0;
 
@@ -306,7 +369,7 @@ int main(int argc, char *argv[]){
 		for(w=0; w<On; w++){
 			
 			parentSet **anet = asOBSlite(cacheofscores, cachesizes, ordering[w]);
-			completed += 1; //for calculating progress only, not 100% accurate
+			completed += 1; //for calculating/displaying progress only, not 100% accurate
 				
 			double anetscore = 0.0;
 	
@@ -418,7 +481,7 @@ int main(int argc, char *argv[]){
 	
 	zlog.overallT = time(NULL) - totalstart;
 	
-/*Blue*/if(exprun < soRestart) goto  Portal;  //The number of soRestart is the number of reruns for the ASOBS
+/*Portal Purple*/if(exprun < soRestart) goto  Portal2;  //The number of soRestart is the number of reruns for the ASOBS
 	
 /* Coda */
 	double displayScore = 0.0;
@@ -431,7 +494,13 @@ int main(int argc, char *argv[]){
 	
 	//for(z=0; z<Xn; z++) {printf("%u ", resultorder[z]);}
 		
-	if(netToFile == 1){ netToDSCFile(); printf("Network saved to a file: %s\n", outputPath); } 
+	if(netToFile == 1 && cacheMode != 'c'){ netToDSCFile(); printf("Network saved to a file: %s\n", outputPath); }
+	
+	if(netToFile == 1 && cacheMode == 'c'){ 
+		
+		
+		
+	}
 	
 	fp = fopen(zlog.logFile, "a+");
 	

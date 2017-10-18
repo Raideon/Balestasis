@@ -22,6 +22,7 @@
 	       Jorma Rissanen, Modeling By Shortest Data Description, 1978
 	       Joe Suzuki, A Construction of Bayesian Networks from Databases Based on an MDL Principle, 1993
 	       David Heckerman, A Tutorial on Learning With Bayesian Networks, 1995 */
+
 void localscore(unsigned int Xi, parentSet *Pii, unsigned char mode){
 
 	unsigned char (*dataA)[Xn] = (unsigned char (*)[Xn])&data[0]; 
@@ -38,7 +39,7 @@ void localscore(unsigned int Xi, parentSet *Pii, unsigned char mode){
 
 	qi = Pii->configsCount;
 
-	// Metrics other than BIC/MDL are not proven (mathematically) working with a guiding metirc yet
+	// Metrics other than BIC/MDL are not proven working with a guiding metirc yet
 	switch(mode){
 
 		case 'A' :
