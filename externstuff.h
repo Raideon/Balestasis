@@ -1,5 +1,5 @@
 /*
-	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
+	Copyright 2017 罗良逸 ( Luo Liangyi, ラ リョウイツ)
  
 	This file is part of Balestasis
 
@@ -39,7 +39,7 @@ extern char metric;
 /* for switching the source of ordering */
 extern char orderMode;
 
-/* for switching the source of caches or deciding whether to save the caches  */
+/* for switching the source of caches or deciding whether to save the caches */
 extern char cacheMode;
 
 /* determines pruned search */

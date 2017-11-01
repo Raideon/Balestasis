@@ -1,5 +1,5 @@
 /*
-	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
+	Copyright 2017 罗良逸 ( Luo Liangyi, ラ リョウイツ)
  
 	This file is part of Balestasis
 
@@ -198,7 +198,7 @@ void orderSearcher(double *topScore, unsigned long *trials, unsigned int *orderi
 		
 		//Warning!!! Don't free any of the anet[i]!!!
 		
-		//merely local best will not be saved, but its score and relevant info will be logged
+		//Only the all time best is saved, but all running bests' score and relevant info will be logged
 		#pragma omp critical
 		{
 			if(anetscore > *topScore && ((finishing - started) < timeB)){

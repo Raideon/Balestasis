@@ -1,7 +1,7 @@
 /*
-	Balestasis - software for learning Bayesian networks from data with heuristics (Please check README)
+	Balestasis - learning Bayesian networks with heuristics (Please check README)
  
-	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
+	Copyright 2017 罗良逸 ( Luo Liangyi, ラ リョウイツ)
  
 	This file is the main part of Balestasis.
 
@@ -48,7 +48,7 @@ unsigned int On;
 /* the limits for running time (not strict), extern class*/
 unsigned int timeA, timeB; 
 
-/* the pointer to data, extern class */
+/* the pointer to the raw data of the input, extern class */
 unsigned char *data; 
 
 /* the pointer to orderings, extern class */
@@ -57,19 +57,19 @@ unsigned int *orderings;
 /* the pointer to the Nodes (struct), extern class */
 node *Nodes;
 
-/* the Bayesian network structure for the output, extern class */
+/* learnt Bayesian network structure for the output, extern class */
 parentSet **finalNet;
 
 /* the score of the above, extern class*/
 double finalScore;
 
-/* the pointer to the result ordering, which is needed to recover the network, extern class */
+/* the pointer to ordering that leads to finalNet, which is needed to recover the network, extern class */
 unsigned int *resultorder;
 
 /* for switching the scoring metric, extern class */
 char metric;
 
-/* for switching the source and mode of ordering, extern class */
+/* for switching the source and the mode of ordering, extern class */
 char orderMode; 
 
 /* for switching the source of caches or deciding whether to save the caches, extern class */
@@ -100,8 +100,6 @@ int main(int argc, char *argv[]){
 	
 	unsigned int soRestart = 1;
 	
-	unsigned char testingDifferentOrderingStrategyMode = 0; //This (experiment mode switch) decides whether orderMode will change during multiple runs. 
-	
 	srand(time(NULL));
 	
 	zlog.psMinMaxSize = 255;
@@ -117,7 +115,7 @@ int main(int argc, char *argv[]){
 	sscanf(argv[5], "%s", zlog.inputFile); //same
 	sscanf(argv[11], "%s", zlog.orderFile); //same
 	sscanf(argv[10], "%s", zlog.outputFile); //same
-	orderMode = argv[6][0]; //'u' for random uniform, 'l' for sample learning, 'p' for preloaded orders from file
+	orderMode = argv[6][0]; //'u' for random uniform, 'l' for sample learning, 'm','p' for preloaded orders from file
 	sscanf(argv[7], "%u", &soRestart); //if 'u' or 'l', then this can be set
 	//argv[8] reserved
 	sscanf(argv[9], "%d", &netToFile); // 0 not saved or 1 saved
@@ -125,15 +123,15 @@ int main(int argc, char *argv[]){
 	if(netToFile == 1) {outputPath = zlog.outputFile;}
 	
 	
-	timeA = argTimeA; //This will be the ESTIMATED time limit of parent set searching for A node.
+	timeA = argTimeA; //This will be the ESTIMATED time limit of learning parent sets for A node.
 
-	timeB = argTimeB; //This will be the ESTIMATED time limit of structure optimisation using ALL nodes.
+	timeB = argTimeB; //This will be the ESTIMATED time limit of building structure using ALL nodes.
 
 
 	metric = 'B'; //'B' for BIC. Currently, only BIC makes sense.
 	zlog.metricUsed[0] = metric;
  
-	pruneMode = 1; //It seems that ON(1) is always better.
+	pruneMode = 1; //It seems that 1 here is always better.
 
 	/* loading data below */
  	FILE *fp;
@@ -149,7 +147,7 @@ int main(int argc, char *argv[]){
 	unsigned int i;
 	for(i=0; i<Xn; i++){
 
-		fscanf(fp, "%s", Variables[i].name); //Be cautious of overflow! Use names with less than 20 chars!!!
+		fscanf(fp, "%s", Variables[i].name); //Use less than 20 chars for names !!! Be cautious of overflow! 
 
 	}
 
@@ -168,7 +166,7 @@ int main(int argc, char *argv[]){
 	
 	printf("The cache mode is %c.\n", cacheMode);
 	
-	//If parent sets and their scores have already been computed, 
+	//If use existing caches loaded through the input,
 	if(cacheMode == 'c'){
 		
 		unsigned int z;
@@ -180,7 +178,7 @@ int main(int argc, char *argv[]){
 			
 			parentSet **closedlist;
 
-			closedlist = malloc( cachesizes[z] * sizeof(parentSet *)); 
+			closedlist = malloc( cachesizes[z] * sizeof(parentSet *)); //Don't free!!!
 			
 			unsigned int i;
 			for(i=0; i<cachesizes[z]; i++){
@@ -292,7 +290,7 @@ int main(int argc, char *argv[]){
 /* This marks the end of loading data. Computation ensues. */
 
 
-/* Next: parent set identification */
+/* Next: learning parent sets from raw data (caches construction) */
 	printf("\nCommencing cache construction.\n");
 	checkpointA0 = time(NULL);
 
@@ -301,7 +299,7 @@ int main(int argc, char *argv[]){
 	for(z=0; z<Xn; z++){
 
 		cacheofscores[z] = indieSelection(z, &cachesizes[z]);
-		completed += 1; //no reduction because it's non-critical info for calculating/displaying progress
+		completed += 1; //no reduction because it's non-critical info for calculating and displaying progress
 		printf("\r  Cache construction for %u out of %u nodes complete (Progress: %u%%).", completed, Xn, (unsigned int) ((float) completed/(float) Xn*100));
 		fflush(stdout);
 
@@ -325,12 +323,23 @@ int main(int argc, char *argv[]){
 /* Portal Orange */Portal: printf("Caches are ready.\n"); 
 
 
+/* Save the caches to a file then stop.*/
+
+	if(cacheMode == 'h'){
+		
+		cachesToFile(cacheofscores, cachesizes);
+		
+		exit(0);
+		
+	}
+
+
 	
-/* Next: structure optimisation */
+/* Next: building global structure */
 
 	unsigned int exprun = 0;
 	
-	finalScore = -DBL_MAX; //It is here; therefore, only the best network of all runs will be saved
+	finalScore = -DBL_MAX; //It is here meaning only the best network of all runs will be saved
 	
 	resultorder = malloc(Xn*sizeof(unsigned int));
 
@@ -339,14 +348,6 @@ int main(int argc, char *argv[]){
 	zlog.iCter = 0;
 
 	exprun += 1;
-	
-	if(testingDifferentOrderingStrategyMode == 1){
-		
-		if(exprun % 2 == 0) orderMode = 'l'; 
-		else orderMode = 'u';
-		
-	}
-
 	
 	zlog.iCter = 0; //reset
 	
@@ -369,7 +370,7 @@ int main(int argc, char *argv[]){
 		for(w=0; w<On; w++){
 			
 			parentSet **anet = asOBSlite(cacheofscores, cachesizes, ordering[w]);
-			completed += 1; //for calculating/displaying progress only, not 100% accurate
+			completed += 1; //for calculating and displaying progress only, not 100% accurate
 				
 			double anetscore = 0.0;
 	
@@ -387,11 +388,11 @@ int main(int argc, char *argv[]){
 					unsigned int u;
 					for(u=0; u<Xn; u++) resultorder[u] = ordering[w][u];
 
-					zlog.trialsTBT = w; //In cases of preloaded ordering, the index of the best ordering will be logged.
+					zlog.trialsTBT = w; //In cases of preloaded orderings, the index of the best ordering will be logged.
 				}
 			}
 			else free(anet); 
-			//Warning!!! To whomever is thinking I didn't free properly here. I did. Don't free any of the anet[i]. If you do, you will destory the caches.
+			//Warning!!! Don't free any of the anet[i]. Otherwise the caches will be destoryed.
 
 			printf("\r %u out of %u complete (Progress: %u%%).", completed, On, (unsigned int) ((float) completed/(float) On*100));
 			fflush(stdout);
@@ -440,10 +441,14 @@ int main(int argc, char *argv[]){
 /* Next: save the running log to the file */
 	fp = fopen(zlog.logFile, "a+");
 	
-	fprintf(fp, "Test No. %u\n", exprun);
+	fprintf(fp, "\nTest No. %u\n", exprun);
+	
+	if(cacheMode == 'd') fputs("Mode: raw data in, net out\n", fp);
+	else if(cacheMode == 'h') fputs("Mode: raw data in, caches out\n", fp);
+	else fputs("Mode: caches in, net(structure only) out\n",fp);
 	
 	fprintf(fp, "{\n\
-	Data: %s ;\n\n\
+	Input: %s ;\n\n\
 	Nodes: %u ;\n\n\
 	Instances: %lu ;\n\n\
 	Preloaded Ordering: %s ;\n\n\
@@ -451,10 +456,10 @@ int main(int argc, char *argv[]){
 			
 	fprintf(fp, "Metric: %s ;\n\n\
 	Score: %lf ;\n\n\
-	IS+ASOBS running time: %ld ;\n\n\
+	Total running time: %ld ;\n\n\
 	", zlog.metricUsed, zlog.score, zlog.togetherT);
 
-	fprintf(fp, "IS time limit setting (per node): %u ;\n\n\
+	if(cacheMode != 'c') fprintf(fp, "IS time limit setting (per node): %u ;\n\n\
 	Actual IS running time: %ld ;\n\n\
 	Size of the largest parent set explored: %hhu - %hhu ;\n\n\
 	IS open lists all exhausted: %s ;\n\n\
@@ -481,12 +486,12 @@ int main(int argc, char *argv[]){
 	
 	zlog.overallT = time(NULL) - totalstart;
 	
-/*Portal Purple*/if(exprun < soRestart) goto  Portal2;  //The number of soRestart is the number of reruns for the ASOBS
+/*Portal Purple*/if(exprun < soRestart) goto  Portal2;  //The number of soRestart is the number of ASOBS reruns.
 	
 /* Coda */
 	double displayScore = 0.0;
 
-	for(z=0; z<Xn; z++) {displayScore = displayScore + finalNet[z]->score;} //This actually provides a final check
+	for(z=0; z<Xn; z++) {displayScore = displayScore + finalNet[z]->score;} //A final check.
 	
 	printf("\nAll done! Final (best) network score: %lf\n", displayScore);
 	
@@ -498,13 +503,13 @@ int main(int argc, char *argv[]){
 	
 	if(netToFile == 1 && cacheMode == 'c'){ 
 		
-		
+		structureToFile();
 		
 	}
 	
 	fp = fopen(zlog.logFile, "a+");
 	
-	fprintf(fp, "Total time: %ld\nFinal score: %lf\nOutput network: %s", zlog.overallT, zlog.score, outputPath);
+	fprintf(fp, "Total time: %ld\nFinal score: %lf\nOutput: %s", zlog.overallT, zlog.score, outputPath);
 	
 	fclose(fp);
 	

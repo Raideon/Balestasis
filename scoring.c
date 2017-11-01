@@ -1,5 +1,5 @@
 /*
-	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
+	Copyright 2017 罗良逸 ( Luo Liangyi, ラ リョウイツ)
  
 	This file is part of Balestasis
 

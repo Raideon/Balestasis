@@ -1,5 +1,5 @@
 /*
-	Copyright 2017 罗良逸 ( Luo Liangyi, ルオ．りょういつ)
+	Copyright 2017 罗良逸 ( Luo Liangyi, ラ リョウイツ)
  
 	This file is part of Balestasis
 
@@ -30,10 +30,58 @@ void anceTracer(parentSet **net, unsigned int *list, unsigned int *c, unsigned i
 void shuffler(unsigned int *ordering);
 
 
+void cachesToFile(parentSet ***cacheofscores, unsigned long *cachesizes){
+	
+	FILE *fp;
+	fp = fopen(outputPath, "a+");
+	
+	fprintf(fp, "%u\n", Xn);
+	
+	unsigned long i,j,k;
+	for(i=0; i<Xn-1; i++) fprintf(fp, "%s ", Nodes[i].name);
+	fprintf(fp, "%s\n", Nodes[Xn-1].name);
+	
+	for(i=0; i<Xn-1; i++) fprintf(fp, "%hhu ", Nodes[i].statesCount);
+	fprintf(fp, "%hhu\n", Nodes[Xn-1].statesCount);
+	
+	for(i=0; i<Xn; i++){
+		
+		fprintf(fp, "%lu %lu\n", i, cachesizes[i]);
+		
+		for(k=0; k<cachesizes[i]; k++){
+	
+			fprintf(fp, "%lf %u ", cacheofscores[i][k]->score, cacheofscores[i][k]->size);
+		
+			for(j=0; j<cacheofscores[i][k]->size; j++) fprintf(fp, " %u", cacheofscores[i][k]->parents[j]);
+			
+			fputs("\n", fp);
+			
+		}
+	
+	}
+	fclose(fp);
+	
+}
+
 void structureToFile(){
 	
 	FILE *fp;
 	fp = fopen(outputPath, "a+");
+	
+	fprintf(fp, "%u\n", Xn);
+	
+	unsigned int i,j;
+	for(i=0; i<Xn; i++){
+		
+		fprintf(fp, "%u\n%lf %u", Nodes[resultorder[i]].datumAC, finalNet[i]->score, finalNet[i]->size);
+		
+		for(j=0; j<finalNet[i]->size; j++) fprintf(fp, " %u", finalNet[i]->parents[j]);
+			
+		fputs("\n", fp);
+		
+	}
+	
+	fclose(fp);
 	
 }
 
