@@ -15,29 +15,29 @@ fi
 
 
 #put the cache (scored parent sets) file in the caches folder
-#the file should be in the format as follows: 
+#the file should be in the format shown as follows: 
 #	the first line is the number of variables, 
 #	the second line is variable names
 #	the third line is variables' #state, 
 #	then parent sets in the following format
 #	<node> <# of parent sets>
-#	<score of the set> <# of parents in the set> <parent> <parent> ......
+#	<the score of the set> <# of parents in the set> <parent> <parent> ......
 #	......
 
-#set the name of the data file
+#put here the name of the data file
 datafile=<filename>
 
 #set the time for building global structures. 
-#Only the network found within the limited will be recorded or saved.
-#This strict limit might not be necessary outside experimental usages. 
+#Only the networks found within the time limit will be recorded or saved.
+#This limit is absolute, which might not be necessary in practical uses. 
 soTime=2
 
-#set the number of ASOBS restarts. The total ASOBS running time will be restart*soTime. Sometimes, it's better to do multiple short runs than a single long run.
+#set the number of ASOBS restarts. The total ASOBS running time will be restart*soTime. (Sometimes, it is better to do multiple short runs than a single long run.)
 restart=1
 
-#If you want to save the learnt structure to a file, set it as 1, otherwise 0. (The log will always say the network has been saved.)
-#The node order follows the ordering used to form the structure. 
-#In 'c' mode, where there aren't raw data, the output is structure only in a file of selected parent sets.
+#If you want to save learnt network structures to a file, set it to 1, otherwise 0. (But the log will always say that the networks has been saved.)
+#The node order follows the ordering used in finding the structure. 
+#In 'c' mode, where there is no raw datum, the output is a structure specified by parent sets.
 output=0
 
 
