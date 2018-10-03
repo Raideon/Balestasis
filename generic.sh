@@ -62,7 +62,7 @@ soTime=2
 restart=1
 
 #If you want to save the learnt networks to a file, set it to 1, otherwise 0.
-#Saved networks will be placed in "network" folder.
+#Saved networks will be placed in the network folder.
 output=0
 
 
