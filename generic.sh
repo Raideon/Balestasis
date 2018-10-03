@@ -13,7 +13,7 @@ if [ ! -f ./balestasis ]
 
 fi
 
-#set the mode. Remember to include quotation marks.
+#set the mode. Remember to include the quotation marks.
 #'d': raw data in, net out
 #'c': caches (parent sets) in, net out 
 #'h': raw data in, caches out
@@ -21,7 +21,7 @@ mode='d'
 
 #if mode='d'/'h'
 #put the data file in the data folder
-#data file should be in the format as follows: 
+#data file should be in the format shown as follows: 
 #	the first line is the number of variables, 
 #	the second line is the number of data points/instances, 
 #	the third line is variable names, 
@@ -29,7 +29,7 @@ mode='d'
 #	then instances line by line.
 
 #if mode='c'
-#put the cache (scored parent sets) file in the caches folder, the extension should be .dat
+#put the cache (scored parent sets) file in the caches folder, the file extension should be .dat
 #the file should be in the format as follows: 
 #	the first line is the number of variables, 
 #	the second line is variable names
@@ -39,7 +39,7 @@ mode='d'
 #	<score of the set> <# of parents in the set> <parent> <parent> ......
 #	......
 
-#set the name of the data file, the output net file with have the same name plus .dsc extension.
+#put here the name of the data file, the output net file will have the same name plus the .dsc extension.
 datafile=<filename>
 
 #set the name of the log file
@@ -49,19 +49,19 @@ logfile=<filename>
 netfile=<filename>
 
 #set the time (per node) for cache construction (searching local strutures/parent sets). 
-#This time limit isn't strict. For ordinarily complex networks with less than 1000 nodes, 5-10 seconds is usually enough. 
+#This time limit is not absolute. For ordinarily complicated networks with less than 1000 nodes, 5-10 seconds is usually enough. 
 #not needed in mode 'c'.
 psiTime=5
 
 #set the time for building global structures. 
-#Only the network found within the limited will be recorded or saved, which might not be necessary outside experimental usages. 
+#Only the networks found within the limited will be recorded or saved. 
 #node needed in mode 'h'
 soTime=2
 
-#set the number of ASOBS restarts. The total ASOBS running time will be restart*soTime. Sometimes, for example, it is better to run five 2-second runs than a single 10-second run.
+#set the number of ASOBS restarts. The total ASOBS running time will be restart*soTime.
 restart=1
 
-#If you want to save the learnt networks to a file, set it as 1, otherwise 0.
+#If you want to save the learnt networks to a file, set it to 1, otherwise 0.
 #Saved networks will be placed in "network" folder.
 output=0
 
